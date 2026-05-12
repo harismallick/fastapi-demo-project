@@ -392,4 +392,65 @@ WHERE posts.id = [new_id];
 ### Video 10: Authentication - Registration and Login with JWT
 #### Notes
 
+- Need to install a password hashing algorithm.
+- The two viable options for Python are bcrypt and argon2.
+- Argon2 is considered the superior hashing algorithm as it is designed to be resistant to GPU based attacks.
+- Argon2 is used in this project with pwdlib
+
+```bash
+uv add "pwdlib[argon2]"
+```
+
+- For working with json web tokens, the project will be using pyjwt.
+- For working with environment variables, using pydantic-settings.
+
+##### Pydantic-settings vs python-dotenv
+
+- dotenv is for working with .env files and environment variables.
+- pydantic-settings (ps) is used to manage configuration variables for the entire application.
+- With ps, environment variables can be mapped to type-safe objects.
+- ps also fails early if config values are incorrect.
+- Full autocomplete support in the IDE as well.
+
+##### Limitations of SQLAlchemy
+
+- In video 10, we need to update the "users" table in the database to include a password-hash field.
+- This would typically require a database migration, but this is not possible in sqlalchemy.
+- So, for the content covered in video 10, we will have to delete the database file, update the table schema in our Python code, then the next time the table is created by the sqlalchemy engine, it will include the password-hash file.
+- This limitation will be addressed in a future video, covering another Python library, Alembic, which allows for database migrations to be performed.
+
+##### Generating a JSON web token
+
+- JWTs contain three parts:
+  1. Header: The header includes the signing algorithm and the token type.
+  2. Payload: The payload contains the claims or the JSON object.
+  3. Signature: A string that is generated via a cryptographic algorithm that can be used to verify the integrity of the JSON payload.
+- In the "create_access_token" method in auth.py, all three components are being passed into the jwt.encode() method.
+- To decode the jwt, need to pass four parameters:
+
+```python
+    payload = jwt.decode(
+        token,
+        settings.secret_key.get_secret_value(),
+        algorithms=[settings.algorithm],
+        options={"require": ["exp", "sub"]},
+    )
+    # secret_key is the SECRET_KEY in our .env file.
+```
+
+- Good practice to make string entries and string comparisons case insensitive.
+- With a normal python String object, we can call the lower() method.
+- To lower case the string stored in an SQL DB, need to use the "func" import from sqlalchemy, which is a FunctionGenerator.
+- It is a middleware object that allows you to call any SQL method like LOWER, UPPER, etc.
+
+##### JWT in the frontend
+- JWT tokens should be stored in local storage. This is considered the standard practice.
+- But local storage variables are vulnerable to XSS (cross site scripting).
+- For this reason, its considered good practice to put a time limit on the validity of the token.
+- We have done this in the auth.py file.
+- When the user logs out, the JS code should clear the localstorage of the JWT token.
+
+### Video 11: Authorization - Protecting Routes and Verifying Current User
+#### Notes
+
 - 
