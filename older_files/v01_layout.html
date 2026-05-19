@@ -320,7 +320,7 @@
         showModal,
         } from "/static/js/utils.js";
 
-        import { getToken } from "/static/js/auth.js";
+        import { getToken } from "static/js/auth.js";
 
         const createForm = document.getElementById("createPostForm");
 
@@ -338,7 +338,6 @@
         // Gather form values into a plain object {title: "...", content: "..."}
         const formData = new FormData(createForm);
         const postData = Object.fromEntries(formData.entries());
-        // console.log(postData);
 
         // TEMPORARY - hardcoded until authorization (Tutorial 11)
         // postData.user_id = 1;
@@ -349,15 +348,9 @@
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`
             },
             body: JSON.stringify(postData),
             });
-
-            if (response.status === 401) {
-                window.location.href = '/login';
-                return;
-            }
 
             if (response.ok) {
             const data = await response.json();
