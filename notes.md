@@ -475,3 +475,138 @@ Difference between HTTP codes 401 (Unauthorised) and 403 (Forbidden)
 - To do this, the Python-Multipart package is required.
 - If fastapi is installed with the correct flags (as we did in this tutorial series), then this package should have been installed.
 - If it isn't, then install manually for this video tutorial.
+- Multipart form data is the object that can be streamed over HTTP. Need to set the content type to this when sending a file over HTTP.
+- FormData object should be created in the frontend for sending files over HTTP, not JSON.
+- In our backend function to handle file upload, we have created the function parameter called 'file'.
+- The FormData **must** contain the File object appended to the FormData object with the key 'file'. Otherwise the backend function will not work correctly.
+- As image processing is a CPU bound task, we do not want to await this function execution directly in the event loop. This would block the entire event loop, negating the benefits of async code execution.
+- Instead, we want to pass the image processing function to "run_in_threadpool" imported from starlette.
+- This will offload the image processing to another thread, and the event loop can track the status of that thread in a non-blocking fashion.
+- 
+
+### Video 13: Pagination - Loading More Data with Query Parameters
+#### Notes
+
+- populate_db.py helper script created to generate enough posts to be able to test the pagination functionality.
+- Also create the "populate_images" directory with the necessary test profile pics. 
+- Need to setup a contract between the frontend and the API for the paginated response.
+  - Things like how many posts to return per request.
+  - How should the posts be ordered? By author, by create date?
+  - This contract needs to be added in schemas.py
+- It looks something like this:
+
+```python
+## Paginated Post Response Schema
+class PaginatedPostsResponse(BaseModel):
+    posts: list[PostResponse]
+    total: int
+    skip: int
+    limit: int
+    has_more: bool
+
+# Total represents all the posts in the DB
+# Skip represents how many rows of the DB need to be skipped before selecting the rows for the query
+# Limit represents how many rows of data to send per request
+# has_more is a boolean which the frontend can use to disable the "load more" button.
+# The orderby operation is crucial for consistent pagination behaviour.
+```
+```
+why didn't he use the "skip" argument for pagination in the user_posts_page endpoint?
+
+In the user_posts_page route (31:26), the creator is implementing server-side rendering for the initial page load.
+
+He did not include the skip argument in this specific template route because the homepage and user-specific post pages are intended to always start from the first batch of results (offset 0) when a user first navigates to that URL.
+
+Here is why the implementation differs slightly from the API endpoint:
+
+Initial Load: When a user visits the URL (e.g., /user/1), the server fetches the first 10 posts to render the page immediately. Because it is always the first page, there is no need to skip any records.
+Client-Side Fetching: Subsequent batches are handled by JavaScript (26:36 - 28:35). The JavaScript logic maintains the current_offset state (27:01), which keeps track of how many posts have already been loaded. When the user clicks the "Load More" button, the JavaScript sends a request to the API, which does accept skip and limit parameters to fetch the next set of data.
+In short: the server-side template route is hardcoded to provide the initial state, while the dynamic API endpoint provides the flexible data retrieval for pagination.
+```
+
+- I ran into an issue when testing this code, with static files getting caches in the frontend.
+- This was preventing the "Load More" button in the updated home.html from working.
+- This can be resolved by configuring fastapi to instruct the browser to not cache static files.
+- How to achieve this:
+
+```
+
+To stop FastAPI from caching your static files, you can intercept the response headers whenever a file is requested. By default, FastAPI doesn't set strict cache-control headers, which lets browsers make their own assumptions and aggressively cache files.
+
+You can fix this cleanly by creating a custom subclass of FastAPI's `StaticFiles` that forces the browser to check for changes every single time.
+
+Here is exactly how to set it up:
+
+```python
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+
+app = FastAPI()
+
+class NoCacheStaticFiles(StaticFiles):
+    """
+    A custom StaticFiles handler that injects headers to prevent 
+    the browser from aggressively caching frontend assets.
+    """
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        
+        # Inject headers to tell browsers never to store or reuse a cached version
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        
+        return response
+
+# Mount your static files using the new custom class instead of the default StaticFiles
+app.mount("/static", NoCacheStaticFiles(directory="static"), name="static")
+
+```
+
+### What these headers actually do:
+
+* **`no-store`**: Tells the browser (and any intermediate caches/proxies) not to save a copy of the file to the local disk at all.
+* **`no-cache` / `must-revalidate**`: Forces the browser to validate with your FastAPI server before using any previously downloaded version of the file.
+* **`Expires: 0`**: Marks the asset as instantly expired so it is never considered "fresh."
+
+### A Quick Warning for Production
+
+While turning off caching is perfect for development so you can see your JavaScript updates instantly, it's a bad idea for a live production server. It forces your users to re-download every image, CSS, and JS file on every single page click, slowing down your app and wasting your server's bandwidth.
+
+If you want to keep caching active for production but disable it safely for your local machine, you can toggle it using an environment variable:
+
+```python
+import os
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+
+app = FastAPI()
+
+# Check if you are running locally or in production
+IS_DEVELOPMENT = os.getenv("ENVIRONMENT", "development") == "development"
+
+if IS_DEVELOPMENT:
+    # Use the custom no-cache class we built above
+    app.mount("/static", NoCacheStaticFiles(directory="static"), name="static")
+else:
+    # Use standard FastAPI static files (enables normal caching)
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+
+```
+- **Don't do this for production.**
+
+
+### Video 14: Password Reset - Email, Tokens, and Background Tasks
+#### Notes
+
+- Following good security practices is absolutely crucial to setting up a good password reset function, and many background tasks alike.
+- The password reset link is emailed to the user. To implement this, we will need to use the SMTP protocol.
+- In Python, the async smtp library is aiosmtplib.
+- Python's builtin SMTP library is synchronous, so it cannot be used in an async application.
+- For testing emails, need a sandbox.
+- In this tutorial, [mailtrap](https://mailtrap.io/home) free tier is used to sandbox testing of sending emails.
+- Can create an email template in Jinja2, similar to other templates that get rendered in the browser.
+- The difference is that these templates connected to an HTTP request. So cannot use TemplateResponse to serve the email HTML.
+- Need to get the template as an environment variable and the call the render() method on the Jinja2Templates object.
+- Use in-line CSS in HTML templates sent over SMTP as CSS files can get ignored. In some cases, all forms of CSS might get ignored.
+- 
