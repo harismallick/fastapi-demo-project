@@ -609,4 +609,66 @@ else:
 - The difference is that these templates connected to an HTTP request. So cannot use TemplateResponse to serve the email HTML.
 - Need to get the template as an environment variable and the call the render() method on the Jinja2Templates object.
 - Use in-line CSS in HTML templates sent over SMTP as CSS files can get ignored. In some cases, all forms of CSS might get ignored.
-- 
+
+
+### Video 15: PostgreSQL and Alembic - Database Migrations for Production
+### Notes
+
+- In this video, a local instance of postgresql was installed. But in a future lesson, the postgres instance will be dockerised.
+- Need to install "psycopg\[binary\]" for working with psql instances in Python.
+- The problem with the lifespan function that was defined with sqlite:
+
+```python
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # On startup
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    # On shutdown
+    await engine.dispose()
+
+# The create_all only handles creation of the database with an "IF EXISTS" condition.
+# Any modifications to the table schema will not be reflected in the DB as the table already exists.
+# The DB would have to be destroyed every time a table schema is changed. This will not work in production.
+# Need to use migrations
+# This is handled by Alembic 
+```
+
+##### Update the env file to include the database url
+```
+# Use the following format for a postgresql DB:
+# postgresql+psycopg://user:password@localhost/database
+```
+
+##### Initialising Alembic
+
+- Need to install alembic via pip or uv
+- Then, need to initialise an instace of alembic using the following command:
+
+```bash
+# Initialise an instance of alembic:
+uv run alembic init -t async alembic
+
+# Autogenerate migration files
+uv run alembic revision --autogenerate -m "initial schema"
+
+# Run the generated migration files to update the DB
+uv run alembic upgrade head
+
+# Command to see the latest migration file executed
+uv run alembic current
+
+# Example migration - adding a likes counter for posts
+# Before running the below command for any migration, make sure the change has been made in models.py
+uv run alembic revision --autogenerate -m "add likes to posts"
+
+# Next run the command to upgrade the DB to the HEAD of the migration state
+uv run alembic upgrade head
+```
+
+- One thing to be vary of when using --autogenerate with alembic:
+  - Alembic can miss subtle changes to the schema, like column type being changed from varchar(50) to varchar(200)
+  - These subtle changes might require writing the migration file manually.
+
+

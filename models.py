@@ -58,6 +58,8 @@ class Post(Base):
     )
 
     author: Mapped[User] = relationship(back_populates="posts")
+    likes: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Defining a server default is necessary to avoid NULL value being added to the column.
 
 ## PasswordResetToken model
 class PasswordResetToken(Base):

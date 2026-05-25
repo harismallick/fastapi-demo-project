@@ -14,7 +14,7 @@ from sqlalchemy import select
 from typing import Annotated
 
 import models
-from database import engine, get_db
+from database import Base, engine, get_db
 
 # Async changes
 from contextlib import asynccontextmanager
@@ -39,6 +39,9 @@ from config import settings
 # For async backends, need to do the following:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    # On startup
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     yield
     # On shutdown
     await engine.dispose()
