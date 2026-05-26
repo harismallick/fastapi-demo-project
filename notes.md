@@ -612,7 +612,7 @@ else:
 
 
 ### Video 15: PostgreSQL and Alembic - Database Migrations for Production
-### Notes
+#### Notes
 
 - In this video, a local instance of postgresql was installed. But in a future lesson, the postgres instance will be dockerised.
 - Need to install "psycopg\[binary\]" for working with psql instances in Python.
@@ -672,3 +672,54 @@ uv run alembic upgrade head
   - These subtle changes might require writing the migration file manually.
 
 
+### Video 16: AWS S3 and Boto3 - Moving File Uploads to the Cloud
+#### Notes
+
+- Need to setup an S3 Bucket with public read access to the static files.
+- Need to setup an IAM User with the appropriate Policy to only be able to access profile pics in the S3 bucket.
+- Apply the **principle of least priviledge** when setting up profiles and IAM users for security reasons.
+- The helper function to upload files to S3 and delete files from there need to be run in a separate thread.
+- This is where the run_in_threadpool method from starlette.concurrency will need to be used.
+- The ClientException handler will be needed from the botocore library to handle AWS exceptions.
+- To use MyPy type checking with boto3, need to install the appropriate stubs:
+
+```bash
+uv add "boto3-stubs[essential]"
+```
+
+### Video 17: Testing the API - Pytest, Fixtures, and Mocking External Services
+#### Notes
+
+- Need to install pytest and moto\[s3\] as dev dependencies to the repo.
+- The moto library is used to mock AWS services.
+- If FastAPI was installed the necessary async dependencies, then "anyio" should be installed.
+- If anyio is not in installed packages, then install it.
+- FastAPI provides a test client, which works fine for simple (synchronous) applications, but for more complex (asynchronous) ones, should use dedicated async-capable testing libraries. Check test_demo.py.
+
+##### conftest.py
+
+- This is a configuration file for pytests.
+- All common setup and teardown methods across different test files can be configured here.
+- pytest will look for the conftest.py file at init time.
+- Contents of the conftest file:
+  - environment variables for **testing**.
+  - We do not want production env variables to be imported for testing.
+  - These variables are overridden in the conftest file.
+  - **AFTER** overriding the env variables, import all the necessary packages for testing.
+  - The above-mentioned import order is crucial for the test environment to behave correctly.
+- anyio allows for defining and running async pytests.
+- *@pytest.fixture(scope="")* wrapper turns any function into a pytest.
+- scope="session" means that the defined function will **only** run once for the complete pytest session.
+- @pytest.fixture without the parantheses is the default meaning the test scope is to the defined function, ie, each test.
+- **Transactional roll-back testing** methodology applied for testing with the postgres db.
+- In this methodology, the db transaction is rolled back after the test has completed.
+- This is more efficient than creating and destroying the DB for each test.
+- The moto library mocks AWS services in memory. You never actually connect to a cloud AWS instance.
+- ASGITransport mocks the HTTP communication pathway in the AsyncClient.
+- If your app is dependent on init-configurations like creating a cache, then you will need ASGI Lifespan manager.
+- 
+
+### Video 18: Deploy to a VPS - Security, Nginx, SSL, and Custom Domain
+#### Notes
+
+- 

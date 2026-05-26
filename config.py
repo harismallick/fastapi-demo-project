@@ -15,6 +15,13 @@ class Settings(BaseSettings):
 
     max_upload_size_bytes: int = 5 * 1024 * 1024
 
+    # S3 Configuration
+    s3_bucket_name: str
+    s3_region: str = "eu-west-2"
+    s3_access_key_id: SecretStr | None = None
+    s3_secret_access_key: SecretStr | None = None
+    s3_endpoint_url: str | None = None
+
     posts_per_page: int = 10
 
     # password reset token expiration time:

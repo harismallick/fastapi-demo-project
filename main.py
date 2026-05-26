@@ -54,7 +54,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Second argument is a StaticFiles object with paths to all static files
 # Third argument is the name used to refer to this mounted application within the FastAPI app.
 
-app.mount("/media", StaticFiles(directory="media"), name="media")
+# app.mount("/media", StaticFiles(directory="media"), name="media")
 
 templates = Jinja2Templates(directory="templates")
 
