@@ -722,4 +722,81 @@ uv add "boto3-stubs[essential]"
 ### Video 18: Deploy to a VPS - Security, Nginx, SSL, and Custom Domain
 #### Notes
 
+- A simple way to test if the database is online is to try and execute a **SELECT 1** sql command.
+- Create an endpoint for this command, which can be used as a health check for the database.
+- Watch this complete video to learn how to manually deploy an app to a cloud server, and setup the reverse proxy and firewall yourself.
+- In video 19, containerised deployment is discussed. Will jump to that lesson.
+
+### Video 19: Deploy with Docker - Serverless Containers and Custom Domain
+#### Notes
+
+- In this project, multi-stage docker build is implemented.
+- The steps to setup the container are the first stage, then the setup for the actual app itself is the second stage.
+- This initial setup stage is discarded in the final build. This helps keep the image sizes as small as possible.
+- In the dockerignore file, you should ignore the git history and the tests folder.
+- These directories are not needed in production and do not need to be built into the container image.
+- To configure the .dockerignore file, can copy Corey's [file](https://github.com/CoreyMSchafer/FastAPI-19-Deployment-Docker-GCR/blob/main/.dockerignore).
+
+##### Serverless postgres
+
+- For serverless deployment of postgres, [Neon Tech](https://neon.com/) is used, which has a decent free tier.
+- For running DB migrations on Neon, use the DB connection link *without* connection pooling.
+- For normal usage of the postgres DB, use the DB connection link *with* connection pooling enabled.
+- In this example project, the same env variable was used for both, but in production use cases, both connection links should be separate variables.
+
+##### Docker commands to build and run the app
+
+```bash
+# Pattern:
+# docker build -t <tag-name> <app-directory-path>
+docker build -t fastapi-app .
+
+# Run the app
+docker run -p 8080:8080 --env-file .env fastapi-app
+```
+
+- Google cloud run uses port 8080 by default, which is why we're using that port instead of 8000 being used earlier in the lecture series.
+- Need to setup a GCP account and a new project.
+- Then need to setup billing information for the project.
+- Then install the GCP CLI.
+- Then add the specific project as the active project to the CLI during the init.
+- Then run the following commands:
+
+```bash
+gcloud services enable run.googleapis.com
+gcloud services enable cloudbuild.googleapis.com
+gcloud services enable artifactregistry.googleapis.com
+
+# Command to see all active Google services:
+gcloud services list --enabled
+
+# Create a repository for docker containers:
+gcloud artifacts repositories create fastapi-repo --repository-format=docker --location=europe-west2
+
+# Log into GCP and navigate to artifacts repository to find URL for the above repo.
+# Then build and push a docker image using the following command pattern:
+gcloud builds submit --tag repo-url/image-name
+
+# Deploy the container using this image on Could Run with the following command:
+gcloud run deploy fastapi-service --image image-url --region europe-west2 --allow-unauthenticated
+# where fastapi-service is the name for this deployed service
+
+# Running this command without setting env variables will cause it to fail.
+# Add env variables using CLI or via the Cloud Console.
+
+# GCP will generate an auto URL for the app
+# To map a custom domain name to the app, run the following command:
+
+gcloud beta run domain-mappings create \
+--service=service-name \
+--domain=custom-domain.com \
+--region=europe-west2
+
+
+# GCP can take upto an hour to provision the SSL certificates for the domain. The status can be tracked using this command:
+gcloud beta run domain-mappings describe \
+--domain=custom-domain.com \
+--region=europe-west2
+```
+
 - 

@@ -8,7 +8,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 # fastAPI uses starlette for generating its HTTP exceptions
 # So we're using starlette directly here to illustrate this.
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 # from sqlalchemy.orm import Session
 
 from typing import Annotated
@@ -62,7 +62,37 @@ templates = Jinja2Templates(directory="templates")
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(posts.router, prefix="/api/posts", tags=["posts"])
 
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+
+    response.headers["X-Content-Type-Options"] = "nosniff"
+
+    if "Referrer-Policy" not in response.headers:
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    if request.url.hostname not in ("localhost", "127.0.0.1"):
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=63072000; includeSubDomains"
+        )
+
+    return response
+
 ### URL endpoints
+
+## Health Check Endpoint
+@app.get("/health")
+async def health_check(db: Annotated[AsyncSession, Depends(get_db)]):
+    try:
+        await db.execute(text("SELECT 1"))
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database unavailable",
+        ) from exc
+    return {"status": "healthy"}
 
 ## home route - paginated
 @app.get("/", include_in_schema=False, name="home")
